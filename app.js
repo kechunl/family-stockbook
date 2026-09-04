@@ -136,7 +136,7 @@ function itemCard(item, shopping) {
     <button class="swipe-action swipe-delete" data-swipe-action="delete">删除</button>
     <button class="swipe-action swipe-edit" data-swipe-action="edit">编辑</button>
     <article class="item-card ${stale ? 'stale' : ''}">
-      ${item.image_data ? `<img class="item-photo" src="${item.image_data}" alt="${escapeHtml(item.name)}" />` : ''}
+      ${item.image_data ? `<button class="item-photo-button" data-photo-preview aria-label="查看${escapeHtml(item.name)}的照片"><img class="item-photo" src="${item.image_data}" alt="" /></button>` : ''}
       <div class="item-info"><div class="item-title">${escapeHtml(item.name)}${stale ? '<span class="dot" title="很久没确认"></span>' : ''}</div>
         <small>${shopping ? categoryLabel(item.category) : `最后确认：${date}`}</small></div>
       ${shopping ? `<button class="bought" data-action="status" data-id="${item.id}" data-status="enough">买到了</button>`
@@ -180,6 +180,10 @@ function showDeleteModal(item) {
   });
 }
 
+function showImageModal(item) {
+  openModal(`<button class="modal-close" data-close aria-label="关闭">×</button><h2>${escapeHtml(item.name)}</h2><img class="photo-full" src="${item.image_data}" alt="${escapeHtml(item.name)}" />`);
+}
+
 function bindSwipeGestures() {
   const closeRows = except => document.querySelectorAll('.swipe-row').forEach(row => {
     if (row !== except) { row.dataset.open = ''; row.querySelector('.item-card').style.transform = ''; }
@@ -213,6 +217,7 @@ function bindSwipeGestures() {
     });
     row.querySelector('[data-swipe-action="edit"]').addEventListener('click', () => { closeRows(); showEditModal(item); });
     row.querySelector('[data-swipe-action="delete"]').addEventListener('click', () => { closeRows(); showDeleteModal(item); });
+    row.querySelector('[data-photo-preview]')?.addEventListener('click', () => showImageModal(item));
   });
 }
 

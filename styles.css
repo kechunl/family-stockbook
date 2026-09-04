@@ -59,7 +59,8 @@ button { border: 0; border-radius: 11px; padding: 12px 16px; background: var(--g
 .swipe-action { position: absolute; z-index: 1; top: 0; bottom: 0; width: 88px; border-radius: 0; font-size: 15px; }
 .swipe-delete { left: 0; padding: 0 18px 0 10px; background: var(--danger); text-align: left; }
 .swipe-edit { right: 0; padding: 0 10px 0 18px; background: #3a7bd5; text-align: right; }
-.item-photo { width: 64px; height: 64px; flex: 0 0 64px; object-fit: cover; border-radius: 13px; background: #eef3ef; }
+.item-photo-button { width: 52px; height: 52px; flex: 0 0 52px; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: #eef3ef; }
+.item-photo { display: block; width: 100%; height: 100%; object-fit: cover; }
 .item-info { min-width: 0; display: grid; gap: 5px; }
 .item-title { font-weight: 750; overflow-wrap: anywhere; }
 .item-info small { color: var(--muted); }
@@ -87,6 +88,7 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 .photo-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .photo-button { display: block; padding: 14px; border: 1px dashed #a9b9ae; border-radius: 12px; color: var(--green); text-align: center; cursor: pointer; }
 .photo-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 14px; }
+.photo-full { display: block; width: 100%; max-height: 68vh; object-fit: contain; border-radius: 14px; background: #eef3ef; }
 .checkbox-row { display: flex; grid-template-columns: none; align-items: center; gap: 9px; color: var(--ink); }
 .checkbox-row input { width: 19px; height: 19px; margin: 0; accent-color: var(--green); }
 .category-list { display: grid; gap: 8px; margin-bottom: 18px; }
@@ -95,9 +97,10 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 
 @media (max-width: 560px) {
   #app { padding-inline: 12px; }
-  .item-card { align-items: stretch; flex-direction: column; }
-  .item-photo { width: 100%; height: 150px; }
-  .statuses { display: grid; grid-template-columns: repeat(3, 1fr); }
-  .bought { align-self: flex-end; }
+  .item-card { align-items: center; flex-direction: row; flex-wrap: wrap; }
+  .item-photo-button { width: 48px; height: 48px; flex-basis: 48px; align-self: flex-start; }
+  .item-info { flex: 1 1 120px; }
+  .statuses { display: grid; grid-template-columns: repeat(3, 1fr); flex: 1 0 100%; }
+  .bought { margin-left: auto; }
   footer { align-items: flex-start; flex-direction: column; }
 }
