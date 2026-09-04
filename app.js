@@ -132,13 +132,17 @@ function onboarding() {
 function itemCard(item, shopping) {
   const stale = isStale(item);
   const date = new Date(Number(item.updated_at)).toLocaleDateString('zh-CN');
-  return `<article class="item-card ${stale ? 'stale' : ''}" data-item-id="${item.id}">
-    ${item.image_data ? `<img class="item-photo" src="${item.image_data}" alt="${escapeHtml(item.name)}" />` : ''}
-    <div class="item-info"><div class="item-title">${escapeHtml(item.name)}${stale ? '<span class="dot" title="很久没确认"></span>' : ''}</div>
-      <small>${shopping ? categoryLabel(item.category) : `最后确认：${date}`}</small></div>
-    ${shopping ? `<button class="bought" data-action="status" data-id="${item.id}" data-status="enough">买到了</button>`
-      : `<div class="statuses">${['enough', 'low', 'out'].map(status => `<button data-action="status" data-id="${item.id}" data-status="${status}" class="${item.status === status ? 'selected' : ''}">${statusLabel(status)}</button>`).join('')}</div>`}
-  </article>`;
+  return `<div class="swipe-row" data-item-id="${item.id}">
+    <button class="swipe-action swipe-delete" data-swipe-action="delete">删除</button>
+    <button class="swipe-action swipe-edit" data-swipe-action="edit">编辑</button>
+    <article class="item-card ${stale ? 'stale' : ''}">
+      ${item.image_data ? `<img class="item-photo" src="${item.image_data}" alt="${escapeHtml(item.name)}" />` : ''}
+      <div class="item-info"><div class="item-title">${escapeHtml(item.name)}${stale ? '<span class="dot" title="很久没确认"></span>' : ''}</div>
+        <small>${shopping ? categoryLabel(item.category) : `最后确认：${date}`}</small></div>
+      ${shopping ? `<button class="bought" data-action="status" data-id="${item.id}" data-status="enough">买到了</button>`
+        : `<div class="statuses">${['enough', 'low', 'out'].map(status => `<button data-action="status" data-id="${item.id}" data-status="${status}" class="${item.status === status ? 'selected' : ''}">${statusLabel(status)}</button>`).join('')}</div>`}
+    </article>
+  </div>`;
 }
 
 function showEditModal(item) {
@@ -177,26 +181,38 @@ function showDeleteModal(item) {
 }
 
 function bindSwipeGestures() {
-  document.querySelectorAll('.item-card').forEach(card => {
-    const item = state.items.find(candidate => candidate.id === card.dataset.itemId);
+  const closeRows = except => document.querySelectorAll('.swipe-row').forEach(row => {
+    if (row !== except) { row.dataset.open = ''; row.querySelector('.item-card').style.transform = ''; }
+  });
+  document.querySelectorAll('.swipe-row').forEach(row => {
+    const card = row.querySelector('.item-card');
+    const item = state.items.find(candidate => candidate.id === row.dataset.itemId);
     if (!item) return;
     let startX = 0; let startY = 0; let tracking = false;
     card.addEventListener('touchstart', event => {
       if (event.touches.length !== 1 || event.target.closest('button')) return;
+      closeRows(row); row.dataset.open = ''; card.style.transform = '';
       startX = event.touches[0].clientX; startY = event.touches[0].clientY; tracking = true;
     }, { passive: true });
     card.addEventListener('touchmove', event => {
       if (!tracking) return;
       const dx = event.touches[0].clientX - startX; const dy = event.touches[0].clientY - startY;
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) < 95) card.style.transform = `translateX(${dx * 0.28}px)`;
+      if (Math.abs(dx) > Math.abs(dy)) card.style.transform = `translateX(${Math.max(-88, Math.min(88, dx))}px)`;
     }, { passive: true });
     card.addEventListener('touchend', event => {
-      if (!tracking) return; tracking = false; card.style.transform = '';
+      if (!tracking) return; tracking = false;
       const dx = event.changedTouches[0].clientX - startX; const dy = event.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
-      if (dx < 0) showEditModal(item); else showDeleteModal(item);
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.2) { card.style.transform = ''; return; }
+      row.dataset.open = dx < 0 ? 'edit' : 'delete';
+      card.style.transform = `translateX(${dx < 0 ? -82 : 82}px)`;
     }, { passive: true });
     card.addEventListener('touchcancel', () => { tracking = false; card.style.transform = ''; }, { passive: true });
+    card.addEventListener('click', event => {
+      if (!row.dataset.open || event.target.closest('button')) return;
+      row.dataset.open = ''; card.style.transform = '';
+    });
+    row.querySelector('[data-swipe-action="edit"]').addEventListener('click', () => { closeRows(); showEditModal(item); });
+    row.querySelector('[data-swipe-action="delete"]').addEventListener('click', () => { closeRows(); showDeleteModal(item); });
   });
 }
 
