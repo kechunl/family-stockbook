@@ -51,9 +51,10 @@ button { border: 0; border-radius: 11px; padding: 12px 16px; background: var(--g
 
 .inventory-tools { display: grid; grid-template-columns: minmax(0, 1fr) 48px 48px; gap: 8px; margin: 18px 0 12px; }
 .inventory-tools.guest-tools { grid-template-columns: minmax(0, 1fr) 48px; }
-.category-picker { display: flex; align-items: center; justify-content: space-between; min-width: 0; padding: 10px 14px; background: white; color: var(--ink); border: 1px solid var(--line); box-shadow: 0 2px 10px #1831270a; }
+.category-picker { position: relative; display: flex; align-items: center; min-width: 0; padding: 10px 42px 10px 14px; background: white; color: var(--ink); border: 1px solid var(--line); box-shadow: 0 2px 10px #1831270a; }
 .category-picker span { color: var(--muted); font-size: 12px; }
-.category-picker strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-picker strong { position: absolute; left: 50%; max-width: calc(100% - 112px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
+.category-picker i { position: absolute; right: 15px; color: var(--muted); font-size: 18px; font-style: normal; line-height: 1; }
 .tool-icon { position: relative; display: grid; place-items: center; width: 48px; height: 46px; padding: 0; background: #e9f2ec; color: var(--green); font-size: 19px; }
 .tool-icon.active { background: var(--green); color: white; }
 .tool-icon em { position: absolute; top: -5px; right: -4px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--danger); color: white; font-size: 11px; font-style: normal; }
