@@ -80,7 +80,7 @@ function openModal(content) {
 function setNotice(message) { state.notice = message; render(); }
 
 async function imageToDataUrl(file) {
-  if (!file) return null;
+  if (!file || !file.size) return null;
   const source = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
