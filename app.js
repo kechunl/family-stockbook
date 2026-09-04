@@ -132,13 +132,72 @@ function onboarding() {
 function itemCard(item, shopping) {
   const stale = isStale(item);
   const date = new Date(Number(item.updated_at)).toLocaleDateString('zh-CN');
-  return `<article class="item-card ${stale ? 'stale' : ''}">
+  return `<article class="item-card ${stale ? 'stale' : ''}" data-item-id="${item.id}">
     ${item.image_data ? `<img class="item-photo" src="${item.image_data}" alt="${escapeHtml(item.name)}" />` : ''}
     <div class="item-info"><div class="item-title">${escapeHtml(item.name)}${stale ? '<span class="dot" title="很久没确认"></span>' : ''}</div>
       <small>${shopping ? categoryLabel(item.category) : `最后确认：${date}`}</small></div>
     ${shopping ? `<button class="bought" data-action="status" data-id="${item.id}" data-status="enough">买到了</button>`
       : `<div class="statuses">${['enough', 'low', 'out'].map(status => `<button data-action="status" data-id="${item.id}" data-status="${status}" class="${item.status === status ? 'selected' : ''}">${statusLabel(status)}</button>`).join('')}</div>`}
   </article>`;
+}
+
+function showEditModal(item) {
+  const layer = openModal(`<button class="modal-close" data-close aria-label="关闭">×</button><h2>编辑物品</h2>
+    <form id="edit-item-form" class="modal-form">
+      <label>名称<input name="name" maxlength="120" value="${escapeHtml(item.name)}" autocomplete="off" required autofocus /></label>
+      <label>分类<select name="category">${state.categories.map(category => `<option value="${category.category_key}" ${category.category_key === item.category ? 'selected' : ''}>${escapeHtml(category.label)}</option>`).join('')}</select></label>
+      <label class="photo-picker"><span>${item.image_data ? '更换照片（可选）' : '照片（可选）'}</span><input id="edit-photo-input" name="photo" type="file" accept="image/*" capture="environment" /><span class="photo-button">📷 拍照或选择照片</span></label>
+      <img id="edit-photo-preview" class="photo-preview" ${item.image_data ? `src="${item.image_data}"` : 'hidden'} alt="照片预览" />
+      ${item.image_data ? '<label class="checkbox-row"><input name="removePhoto" type="checkbox" />移除现有照片</label>' : ''}
+      <div class="modal-actions"><button type="button" class="secondary" data-close>取消</button><button type="submit">保存</button></div>
+    </form>`);
+  const photoInput = layer.querySelector('#edit-photo-input'); const preview = layer.querySelector('#edit-photo-preview');
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    if (file) { preview.src = URL.createObjectURL(file); preview.hidden = false; const remove = layer.querySelector('[name="removePhoto"]'); if (remove) remove.checked = false; }
+  });
+  layer.querySelector('#edit-item-form').addEventListener('submit', async event => {
+    event.preventDefault(); const form = event.currentTarget; const submit = form.querySelector('[type="submit"]'); submit.disabled = true; submit.textContent = '保存中…';
+    try {
+      const data = new FormData(form); const file = data.get('photo');
+      const image = data.get('removePhoto') ? '' : (file?.size ? await imageToDataUrl(file) : null);
+      await rpc('update_inventory_item', { p_family_id: state.family, p_key: state.key, p_item_id: item.id, p_name: data.get('name').trim(), p_category: data.get('category'), p_image_data: image });
+      layer.remove(); await loadAll();
+    } catch (error) { submit.disabled = false; submit.textContent = '保存'; form.querySelector('.notice')?.remove(); form.insertAdjacentHTML('beforeend', `<p class="notice error">${escapeHtml(error.message)}</p>`); }
+  });
+}
+
+function showDeleteModal(item) {
+  const layer = openModal(`<button class="modal-close" data-close aria-label="关闭">×</button><h2>删除“${escapeHtml(item.name)}”？</h2><p>删除后无法恢复。库存和购物清单里都会移除这个物品。</p><div class="modal-actions"><button class="secondary" data-close>取消</button><button id="confirm-delete" class="danger">确认删除</button></div>`);
+  layer.querySelector('#confirm-delete').addEventListener('click', async event => {
+    const button = event.currentTarget; button.disabled = true; button.textContent = '删除中…';
+    try { await rpc('delete_inventory_item', { p_family_id: state.family, p_key: state.key, p_item_id: item.id }); layer.remove(); await loadAll(); }
+    catch (error) { button.disabled = false; button.textContent = '确认删除'; layer.querySelector('.notice')?.remove(); layer.querySelector('.modal').insertAdjacentHTML('beforeend', `<p class="notice error">${escapeHtml(error.message)}</p>`); }
+  });
+}
+
+function bindSwipeGestures() {
+  document.querySelectorAll('.item-card').forEach(card => {
+    const item = state.items.find(candidate => candidate.id === card.dataset.itemId);
+    if (!item) return;
+    let startX = 0; let startY = 0; let tracking = false;
+    card.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1 || event.target.closest('button')) return;
+      startX = event.touches[0].clientX; startY = event.touches[0].clientY; tracking = true;
+    }, { passive: true });
+    card.addEventListener('touchmove', event => {
+      if (!tracking) return;
+      const dx = event.touches[0].clientX - startX; const dy = event.touches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) < 95) card.style.transform = `translateX(${dx * 0.28}px)`;
+    }, { passive: true });
+    card.addEventListener('touchend', event => {
+      if (!tracking) return; tracking = false; card.style.transform = '';
+      const dx = event.changedTouches[0].clientX - startX; const dy = event.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+      if (dx < 0) showEditModal(item); else showDeleteModal(item);
+    }, { passive: true });
+    card.addEventListener('touchcancel', () => { tracking = false; card.style.transform = ''; }, { passive: true });
+  });
 }
 
 function showAddModal() {
@@ -187,6 +246,7 @@ function inventory() {
     <section class="hero"><div><strong>${needs.length}</strong><small>需要购买</small></div><div><strong>${state.items.length - needs.length}</strong><small>库存充足</small></div><div class="${stale.length ? 'has-stale' : ''}"><strong>${stale.length}</strong><small>久未确认</small></div></section>
     ${stale.length ? `<div class="stale-banner"><span class="dot"></span>${stale.length} 件物品超过 ${STALE_DAYS} 天没有确认</div>` : ''}
     <div class="tab-row"><nav class="tabs">${state.categories.map(category => `<button data-tab="${category.category_key}" class="${state.tab === category.category_key ? 'active' : ''}">${escapeHtml(category.label)}</button>`).join('')}<button data-tab="list" class="${state.tab === 'list' ? 'active' : ''}">购物清单${needs.length ? `<em>${needs.length}</em>` : ''}</button></nav><button id="manage-categories" class="manage-labels" aria-label="管理分类">⚙</button></div>
+    ${visible.length ? '<div class="swipe-hint">左滑编辑 · 右滑删除</div>' : ''}
     <section class="items">${visible.length ? visible.map(item => itemCard(item, state.tab === 'list')).join('') : '<div class="empty">这里还没有东西</div>'}</section>
     <button id="floating-add" class="floating-add" aria-label="添加">＋</button>
     ${state.notice ? `<p class="notice ${state.notice.includes('已复制') ? '' : 'error'}">${escapeHtml(state.notice)}</p>` : ''}
@@ -194,6 +254,7 @@ function inventory() {
 
   document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => { state.tab = button.dataset.tab; state.notice = ''; render(); }));
   document.querySelectorAll('[data-action="status"]').forEach(button => button.addEventListener('click', async () => { button.disabled = true; try { await rpc('set_inventory_status', { p_family_id: state.family, p_key: state.key, p_item_id: button.dataset.id, p_status: button.dataset.status }); await loadAll(); } catch (error) { setNotice(error.message); } }));
+  bindSwipeGestures();
   document.querySelector('#floating-add').addEventListener('click', showAddModal);
   document.querySelector('#manage-categories').addEventListener('click', showCategoryManager);
   document.querySelector('#leave').addEventListener('click', showLeaveModal);
